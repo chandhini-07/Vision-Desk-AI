@@ -3,21 +3,28 @@ import os
 from dotenv import load_dotenv
 from google import genai
 
+# Load environment variables
 load_dotenv()
 
 API_KEY = os.getenv("GEMINI_API_KEY")
 
+if not API_KEY:
+    raise ValueError("GEMINI_API_KEY not found in .env file")
+
+# Initialize Gemini client
 client = genai.Client(api_key=API_KEY)
 
 
 class GeminiService:
 
     def ask(self, prompt: str):
+        """
+        Sends the user's prompt to Gemini AI and returns the response.
+        """
 
         try:
-
             response = client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-flash-lite",
                 contents=prompt,
             )
 
@@ -26,13 +33,13 @@ class GeminiService:
 
             return "AI response unavailable."
 
-        except Exception:
+        except Exception as e:
+            print("\n========== GEMINI ERROR ==========")
+            print("Error Type :", type(e).__name__)
+            print("Error :", str(e))
+            print("==================================\n")
 
-            return (
-                "⚠️ Gemini AI is temporarily unavailable because the "
-                "API quota has been exceeded. "
-                "Please try again later or use a different API key."
-            )
+            raise
 
     def generate_report(
         self,
@@ -42,6 +49,9 @@ class GeminiService:
         score,
         risk,
     ):
+        """
+        Generates an AI-powered workplace safety inspection report.
+        """
 
         prompt = f"""
 Workers: {workers}
@@ -50,11 +60,10 @@ Missing PPE: {missing}
 Safety Score: {score}
 Risk: {risk}
 
-Generate a workplace safety inspection report.
+Generate a professional workplace safety inspection report.
 """
 
         try:
-
             return self.ask(prompt)
 
         except Exception:
@@ -70,19 +79,19 @@ Risk Level : {risk}
 
 Detected PPE
 
-Helmet : {stats.get("helmet",0)}
-Vest : {stats.get("vest",0)}
-Gloves : {stats.get("gloves",0)}
-Goggles : {stats.get("goggles",0)}
-Boots : {stats.get("boots",0)}
+Helmet : {stats.get("helmet", 0)}
+Vest : {stats.get("vest", 0)}
+Gloves : {stats.get("gloves", 0)}
+Goggles : {stats.get("goggles", 0)}
+Boots : {stats.get("boots", 0)}
 
 Missing PPE
 
-Helmet : {missing.get("helmet",0)}
-Vest : {missing.get("vest",0)}
-Gloves : {missing.get("gloves",0)}
-Goggles : {missing.get("goggles",0)}
-Boots : {missing.get("boots",0)}
+Helmet : {missing.get("helmet", 0)}
+Vest : {missing.get("vest", 0)}
+Gloves : {missing.get("gloves", 0)}
+Goggles : {missing.get("goggles", 0)}
+Boots : {missing.get("boots", 0)}
 
 Recommendations
 
@@ -91,7 +100,6 @@ Recommendations
 • Verify boots and gloves before work begins.
 • Conduct a daily PPE inspection.
 • Continue monitoring using VisionDesk AI.
-
 """
 
             return report

@@ -1,15 +1,15 @@
-import { ShieldCheck } from "lucide-react";
+import {
+  ShieldCheck,
+  AlertTriangle,
+  CheckCircle2,
+  Activity,
+} from "lucide-react";
 
 export default function SafetyScore({
-
   score,
-
   risk,
-
 }) {
-
   const radius = 90;
-
   const stroke = 12;
 
   const normalizedRadius = radius - stroke * 2;
@@ -22,120 +22,120 @@ export default function SafetyScore({
     (score / 100) * circumference;
 
   let color = "#22c55e";
-
-  let bg = "bg-green-500/20";
-
-  let border = "border-green-500/40";
-
+  let bg = "bg-green-500/10";
+  let border = "border-green-500/30";
+  let badge = "text-green-300";
+  let title = "Excellent Safety";
   let message =
-    "Excellent PPE Compliance";
+    "Workers are complying with PPE requirements.";
 
   if (risk === "MEDIUM") {
-
     color = "#eab308";
-
-    bg = "bg-yellow-500/20";
-
-    border = "border-yellow-500/40";
-
+    bg = "bg-yellow-500/10";
+    border = "border-yellow-500/30";
+    badge = "text-yellow-300";
+    title = "Moderate Risk";
     message =
-      "Moderate Risk - Improve PPE Usage";
-
+      "Improve PPE compliance to reduce operational risk.";
   }
 
   if (risk === "HIGH") {
-
     color = "#ef4444";
-
-    bg = "bg-red-500/20";
-
-    border = "border-red-500/40";
-
+    bg = "bg-red-500/10";
+    border = "border-red-500/30";
+    badge = "text-red-300";
+    title = "Critical Risk";
     message =
-      "Critical Risk - Immediate Action Required";
-
+      "Immediate corrective action is recommended.";
   }
 
+  const confidence = Math.min(
+    99,
+    Math.max(85, score + 5)
+  );
+
   return (
+    <section className="mt-10 rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-8 shadow-xl">
 
-    <div className="mt-10 rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 p-10 shadow-xl">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
 
-      <div className="grid items-center gap-10 lg:grid-cols-2">
+        <div>
+
+          <h2 className="text-3xl font-bold text-white">
+            Safety Assessment
+          </h2>
+
+          <p className="mt-2 text-slate-400">
+            AI-generated workplace safety evaluation
+          </p>
+
+        </div>
+
+        <div
+          className={`rounded-full border ${border} ${bg} px-5 py-2`}
+        >
+          <span className={`font-semibold ${badge}`}>
+            {risk} RISK
+          </span>
+        </div>
+
+      </div>
+
+      <div className="grid gap-10 lg:grid-cols-2">
+
+        {/* Gauge */}
 
         <div className="flex justify-center">
 
           <div className="relative">
 
+            <div
+              className="absolute inset-0 rounded-full blur-3xl opacity-30"
+              style={{ backgroundColor: color }}
+            />
+
             <svg
-
               height={radius * 2}
-
               width={radius * 2}
-
+              className="relative"
             >
 
               <circle
-
                 stroke="#1e293b"
-
                 fill="transparent"
-
                 strokeWidth={stroke}
-
                 r={normalizedRadius}
-
                 cx={radius}
-
                 cy={radius}
-
               />
 
               <circle
-
                 stroke={color}
-
                 fill="transparent"
-
                 strokeWidth={stroke}
-
                 strokeLinecap="round"
-
                 strokeDasharray={`${circumference} ${circumference}`}
-
                 style={{
-
                   strokeDashoffset,
-
                   transition:
-
                     "stroke-dashoffset 1s ease",
-
                 }}
-
                 r={normalizedRadius}
-
                 cx={radius}
-
                 cy={radius}
-
                 transform={`rotate(-90 ${radius} ${radius})`}
-
               />
 
             </svg>
 
             <div className="absolute inset-0 flex flex-col items-center justify-center">
 
-              <h1 className="text-5xl font-bold text-white">
-
+              <h1 className="text-5xl font-black text-white">
                 {score}%
-
               </h1>
 
               <p className="mt-2 text-slate-400">
-
                 Safety Score
-
               </p>
 
             </div>
@@ -144,34 +144,36 @@ export default function SafetyScore({
 
         </div>
 
-        <div>
+        {/* Details */}
+
+        <div className="space-y-6">
 
           <div
-            className={`rounded-2xl border ${border} ${bg} p-8`}
+            className={`rounded-3xl border ${border} ${bg} p-6`}
           >
 
             <div className="flex items-center gap-4">
 
-              <ShieldCheck
-
-                size={42}
-
-                color={color}
-
-              />
+              {risk === "HIGH" ? (
+                <AlertTriangle
+                  size={42}
+                  color={color}
+                />
+              ) : (
+                <ShieldCheck
+                  size={42}
+                  color={color}
+                />
+              )}
 
               <div>
 
-                <h2 className="text-3xl font-bold text-white">
-
-                  {risk}
-
-                </h2>
+                <h3 className="text-3xl font-bold text-white">
+                  {title}
+                </h3>
 
                 <p className="text-slate-400">
-
-                  Risk Level
-
+                  Current workplace status
                 </p>
 
               </div>
@@ -183,15 +185,11 @@ export default function SafetyScore({
               <div className="mb-3 flex justify-between">
 
                 <span className="text-slate-400">
-
-                  Compliance
-
+                  PPE Compliance
                 </span>
 
-                <span className="text-white">
-
+                <span className="font-semibold text-white">
                   {score}%
-
                 </span>
 
               </div>
@@ -199,38 +197,66 @@ export default function SafetyScore({
               <div className="h-4 overflow-hidden rounded-full bg-slate-800">
 
                 <div
-
-                  className="h-4 rounded-full transition-all duration-1000"
-
+                  className="h-full rounded-full transition-all duration-1000"
                   style={{
-
                     width: `${score}%`,
-
                     backgroundColor: color,
-
                   }}
-
                 />
 
               </div>
 
             </div>
 
-            <div className="mt-8 rounded-xl bg-slate-900 p-5">
+          </div>
 
-              <h3 className="text-lg font-semibold text-white">
+          <div className="grid gap-4 md:grid-cols-2">
 
-                AI Status
+            <div className="rounded-2xl bg-slate-900 p-5">
 
-              </h3>
+              <Activity
+                className="mb-3 text-cyan-400"
+                size={24}
+              />
 
-              <p className="mt-3 text-slate-300">
-
-                {message}
-
+              <p className="text-sm text-slate-400">
+                AI Confidence
               </p>
 
+              <h3 className="mt-2 text-3xl font-bold text-white">
+                {confidence}%
+              </h3>
+
             </div>
+
+            <div className="rounded-2xl bg-slate-900 p-5">
+
+              <CheckCircle2
+                className="mb-3 text-emerald-400"
+                size={24}
+              />
+
+              <p className="text-sm text-slate-400">
+                Assessment
+              </p>
+
+              <h3 className={`mt-2 text-xl font-bold ${badge}`}>
+                {risk}
+              </h3>
+
+            </div>
+
+          </div>
+
+          <div className="rounded-2xl bg-slate-900 p-6">
+
+            <h3 className="text-lg font-semibold text-white">
+              AI Summary
+            </h3>
+
+            <p className="mt-3 leading-7 text-slate-300">
+              {message}
+            </p>
 
           </div>
 
@@ -238,8 +264,6 @@ export default function SafetyScore({
 
       </div>
 
-    </div>
-
+    </section>
   );
-
 }

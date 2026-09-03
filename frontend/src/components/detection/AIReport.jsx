@@ -1,79 +1,76 @@
-import { Bot, Copy, Download } from "lucide-react";
+import { useState } from "react";
+import {
+  Bot,
+  Copy,
+  Download,
+  Check,
+  Sparkles,
+  FileText,
+} from "lucide-react";
 
-export default function AIReport({
+export default function AIReport({ report }) {
+  const [copied, setCopied] = useState(false);
 
-  report,
-
-}) {
-
-  function copyReport() {
-
-    navigator.clipboard.writeText(report);
-
-    alert("AI Report copied.");
-
+  async function copyReport() {
+    try {
+      await navigator.clipboard.writeText(report);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function downloadReport() {
-
-    const blob = new Blob(
-
-      [report],
-
-      {
-
-        type: "text/plain",
-
-      }
-
-    );
+    const blob = new Blob([report], {
+      type: "text/plain",
+    });
 
     const url = URL.createObjectURL(blob);
 
-    const a = document.createElement("a");
+    const link = document.createElement("a");
 
-    a.href = url;
-
-    a.download = "VisionDesk_AI_Report.txt";
-
-    a.click();
+    link.href = url;
+    link.download = "VisionDesk_AI_Report.txt";
+    link.click();
 
     URL.revokeObjectURL(url);
-
   }
 
   return (
+    <section className="mt-10 rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 shadow-xl">
 
-    <div className="mt-10 rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-900 to-slate-950 shadow-xl">
+      {/* Header */}
 
-      <div className="flex items-center justify-between border-b border-slate-800 p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 p-6">
 
         <div className="flex items-center gap-4">
 
-          <div className="rounded-xl bg-blue-600 p-3">
+          <div className="rounded-2xl bg-blue-600/20 p-4">
 
             <Bot
-
-              size={28}
-
-              className="text-white"
-
+              size={30}
+              className="text-blue-400"
             />
 
           </div>
 
           <div>
 
-            <h2 className="text-2xl font-bold text-white">
+            <div className="flex items-center gap-2">
 
-              Gemini AI Safety Report
+              <h2 className="text-2xl font-bold text-white">
+                AI Safety Report
+              </h2>
 
-            </h2>
+              <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-300">
+                Gemini AI
+              </span>
 
-            <p className="text-slate-400">
+            </div>
 
-              Automatically generated workplace inspection report
-
+            <p className="mt-2 text-slate-400">
+              Automatically generated workplace safety assessment.
             </p>
 
           </div>
@@ -83,26 +80,31 @@ export default function AIReport({
         <div className="flex gap-3">
 
           <button
-
             onClick={copyReport}
-
-            className="rounded-lg bg-slate-800 px-4 py-2 text-white hover:bg-slate-700"
-
+            className="flex items-center gap-2 rounded-xl bg-slate-800 px-4 py-2 text-white transition hover:bg-slate-700"
           >
 
-            <Copy size={18} />
+            {copied ? (
+              <>
+                <Check size={18} />
+                Copied
+              </>
+            ) : (
+              <>
+                <Copy size={18} />
+                Copy
+              </>
+            )}
 
           </button>
 
           <button
-
             onClick={downloadReport}
-
-            className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-
+            className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-white transition hover:bg-blue-700"
           >
 
             <Download size={18} />
+            Download
 
           </button>
 
@@ -110,22 +112,77 @@ export default function AIReport({
 
       </div>
 
-      <div className="max-h-[500px] overflow-y-auto p-8">
+      {/* Summary */}
 
-        <div className="rounded-2xl border border-slate-800 bg-slate-950 p-8">
+      <div className="grid gap-6 border-b border-slate-800 p-6 md:grid-cols-3">
 
-          <pre className="whitespace-pre-wrap text-base leading-8 text-slate-200 font-sans">
+        <div className="rounded-2xl bg-slate-900 p-5">
 
+          <Sparkles
+            className="mb-3 text-cyan-400"
+            size={24}
+          />
+
+          <p className="text-sm text-slate-400">
+            Analysis
+          </p>
+
+          <h3 className="mt-2 text-xl font-bold text-white">
+            AI Generated
+          </h3>
+
+        </div>
+
+        <div className="rounded-2xl bg-slate-900 p-5">
+
+          <FileText
+            className="mb-3 text-blue-400"
+            size={24}
+          />
+
+          <p className="text-sm text-slate-400">
+            Report Type
+          </p>
+
+          <h3 className="mt-2 text-xl font-bold text-white">
+            Workplace Safety
+          </h3>
+
+        </div>
+
+        <div className="rounded-2xl bg-slate-900 p-5">
+
+          <Bot
+            className="mb-3 text-emerald-400"
+            size={24}
+          />
+
+          <p className="text-sm text-slate-400">
+            Model
+          </p>
+
+          <h3 className="mt-2 text-xl font-bold text-white">
+            Gemini AI
+          </h3>
+
+        </div>
+
+      </div>
+
+      {/* Report */}
+
+      <div className="max-h-[550px] overflow-y-auto p-8">
+
+        <div className="rounded-3xl border border-slate-800 bg-slate-950 p-8">
+
+          <pre className="whitespace-pre-wrap font-sans text-[15px] leading-8 text-slate-200">
             {report}
-
           </pre>
 
         </div>
 
       </div>
 
-    </div>
-
+    </section>
   );
-
 }

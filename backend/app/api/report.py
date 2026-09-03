@@ -1,13 +1,26 @@
+import logging
+import time
 from pathlib import Path
-from fastapi import APIRouter
 from datetime import datetime
-from app.ai.gemini import gemini_service
-from app.reports.pdf_report import pdf_report
-from app.services.detection_service import detection_service
-from fastapi import HTTPException, Depends
+
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
+
 from app.database.db import get_db
 from app.models.detection_model import Detection
+
+from app.services.detection_service import detection_service
+from app.services.report_service import report_service
+from app.reports.pdf_report import pdf_report
+
+try:
+    from app.ai.gemini import gemini_service
+    GEMINI_AVAILABLE = True
+except Exception:
+    GEMINI_AVAILABLE = False
+
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/report",
@@ -15,93 +28,298 @@ router = APIRouter(
 )
 
 
+# ---------------------------------------------------------
+# Generate PDF Report
+# ---------------------------------------------------------
+
 @router.post("/generate")
 async def generate_report():
 
+    start = time.perf_counter()
+
     uploads = Path("app/uploads")
 
-    files = [f for f in uploads.iterdir() if f.is_file()]
+    if not uploads.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Uploads folder not found.",
+        )
 
-    if not files:
-        return {
-            "success": False,
-            "message": "No uploaded image found."
-        }
+    files = [
+        file
+        for file in uploads.iterdir()
+        if file.is_file()
+    ]
+
+    if len(files) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No uploaded image found.",
+        )
 
     latest = max(
         files,
-        key=lambda f: f.stat().st_mtime
+        key=lambda file: file.stat().st_mtime,
     )
 
-    result = detection_service.detect(str(latest))
+    try:
 
-    ai_report = gemini_service.generate_report(
-        workers=result["workers_count"],
-        stats=result["stats"],
-        missing=result["missing"],
-        score=result["safety_score"],
-        risk=result["risk"],
+        result = detection_service.detect(
+            str(latest)
+        )
+
+        workers = result.get("workers_count", 0)
+        stats = result.get("stats", {})
+        missing = result.get("missing", [])
+        score = result.get("safety_score", 0)
+        risk = result.get("risk", "Unknown")
+        violations = result.get("violations", 0)
+
+        # -----------------------------------------
+        # AI Report
+        # -----------------------------------------
+
+        if GEMINI_AVAILABLE:
+
+            try:
+
+                ai_report = gemini_service.generate_report(
+                    workers=workers,
+                    stats=stats,
+                    missing=missing,
+                    score=score,
+                    risk=risk,
+                )
+
+            except Exception:
+
+                ai_report = report_service.generate(
+                    workers=workers,
+                    stats=stats,
+                    missing=missing,
+                    score=score,
+                    risk=risk,
+                )
+
+        else:
+
+            ai_report = report_service.generate(
+                workers=workers,
+                stats=stats,
+                missing=missing,
+                score=score,
+                risk=risk,
+            )
+
+        # -----------------------------------------
+        # Generate PDF
+        # -----------------------------------------
+
+        pdf_path = pdf_report.generate(
+            filename=latest.name,
+            original_image=str(latest),
+            annotated_image=result["annotated_image"],
+            stats=stats,
+            violations=violations,
+            score=score,
+            risk=risk,
+            ai_report=ai_report,
+        )
+
+        elapsed = round(
+            time.perf_counter() - start,
+            2,
+        )
+
+        logger.info(
+            "PDF generated in %.2f seconds",
+            elapsed,
+        )
+
+        return {
+            "success": True,
+            "message": "Report generated successfully.",
+            "filename": latest.name,
+            "pdf": pdf_path,
+            "processing_time": elapsed,
+        }
+
+    except Exception as error:
+
+        logger.exception(error)
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to generate report.",
+        )
+
+
+# ---------------------------------------------------------
+# Report List
+# ---------------------------------------------------------
+
+@router.get("/list")
+def list_reports(
+    db: Session = Depends(get_db),
+):
+
+    reports_dir = Path("app/generated_reports")
+
+    if not reports_dir.exists():
+        return {
+            "reports": [],
+        }
+
+    detections = (
+        db.query(Detection)
+        .order_by(Detection.id.desc())
+        .all()
     )
 
-    pdf_path = pdf_report.generate(
-        filename=latest.name,
-        original_image=str(latest),
-        annotated_image=result["annotated_image"],
-        stats=result["stats"],
-        violations=result["violations"],
-        score=result["safety_score"],
-        risk=result["risk"],
-        ai_report=ai_report,
+    lookup = {}
+
+    for detection in detections:
+
+        if detection.filename:
+
+            lookup.setdefault(
+                Path(detection.filename).stem,
+                detection,
+            )
+
+    reports = []
+
+    for pdf in reports_dir.glob("*.pdf"):
+
+        stat = pdf.stat()
+
+        stem = pdf.stem.replace(
+            "_report",
+            "",
+        )
+
+        detection = lookup.get(stem)
+
+        reports.append({
+
+            "id": pdf.stem,
+
+            "filename": pdf.name,
+
+            "pdf_path": f"app/generated_reports/{pdf.name}",
+
+            "created_at": datetime.fromtimestamp(
+                stat.st_mtime
+            ).isoformat(),
+
+            "size_bytes": stat.st_size,
+
+            "safety_score": (
+                detection.safety_score
+                if detection
+                else None
+            ),
+
+            "risk": (
+                detection.risk
+                if detection
+                else None
+            ),
+
+            "workers": (
+                detection.workers
+                if detection
+                else None
+            ),
+
+            "violations": (
+                detection.violations
+                if detection
+                else None
+            ),
+
+        })
+
+    reports.sort(
+        key=lambda item: item["created_at"],
+        reverse=True,
+    )
+
+    return {
+        "count": len(reports),
+        "reports": reports,
+    }
+
+
+# ---------------------------------------------------------
+# Delete Report
+# ---------------------------------------------------------
+
+@router.delete("/{report_id}")
+def delete_report(
+    report_id: str,
+):
+
+    pdf = (
+        Path("app/generated_reports")
+        / f"{report_id}.pdf"
+    )
+
+    if not pdf.exists():
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found.",
+        )
+
+    pdf.unlink()
+
+    logger.info(
+        "Deleted report %s",
+        report_id,
     )
 
     return {
         "success": True,
-        "pdf": pdf_path,
+        "message": "Report deleted successfully.",
     }
 
 
-@router.get("/list")
-def list_reports(db: Session = Depends(get_db)):
-    """List every PDF in app/generated_reports/, enriched with detection data."""
-    reports_dir = Path("app/generated_reports")
-    if not reports_dir.exists():
-        return {"reports": []}
+# ---------------------------------------------------------
+# Report Details
+# ---------------------------------------------------------
 
-    # Build a lookup: image_stem -> latest Detection row
-    detections = db.query(Detection).order_by(Detection.id.desc()).all()
-    by_stem = {}
-    for d in detections:
-        if d.filename:
-            stem = Path(d.filename).stem
-            by_stem.setdefault(stem, d)  # keep newest (first hit wins)
+@router.get("/{report_id}")
+def report_details(
+    report_id: str,
+):
 
-    items = []
-    for pdf in reports_dir.glob("*.pdf"):
-        stat = pdf.stat()
-        # PDF is saved as <image_stem>_report.pdf → strip suffix to look up
-        image_stem = pdf.stem.removesuffix("_report")
-        detection = by_stem.get(image_stem)
-        items.append({
-            "id": pdf.stem,
-            "filename": pdf.name,
-            "pdf_path": f"app/generated_reports/{pdf.name}",
-            "created_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-            "size_bytes": stat.st_size,
-            "safety_score": detection.safety_score if detection else None,
-            "risk": detection.risk if detection else None,
-            "workers": detection.workers if detection else None,
-            "violations": detection.violations if detection else None,
-        })
+    pdf = (
+        Path("app/generated_reports")
+        / f"{report_id}.pdf"
+    )
 
-    items.sort(key=lambda r: r["created_at"], reverse=True)
-    return {"reports": items}
-
-
-@router.delete("/{report_id}")
-def delete_report(report_id: str):
-    """Delete a report PDF by its ID (filename without .pdf)."""
-    pdf = Path("app/generated_reports") / f"{report_id}.pdf"
     if not pdf.exists():
-        raise HTTPException(status_code=404, detail="Report not found.")
-    pdf.unlink()
-    return {"success": True, "message": "Report deleted."}
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found.",
+        )
+
+    stat = pdf.stat()
+
+    return {
+
+        "id": report_id,
+
+        "filename": pdf.name,
+
+        "size_bytes": stat.st_size,
+
+        "created_at": datetime.fromtimestamp(
+            stat.st_mtime
+        ).isoformat(),
+
+        "path": str(pdf),
+
+    }

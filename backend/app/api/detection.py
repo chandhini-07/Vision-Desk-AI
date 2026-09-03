@@ -1,6 +1,8 @@
+import logging
+import time
 from pathlib import Path
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database.db import get_db
@@ -9,12 +11,14 @@ from app.models.detection_model import Detection
 from app.services.detection_service import detection_service
 from app.services.report_service import report_service
 
-# Optional Gemini enhancement
 try:
     from app.ai.gemini import gemini_service
     GEMINI_AVAILABLE = True
 except Exception:
     GEMINI_AVAILABLE = False
+
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/api/detect",
@@ -27,119 +31,204 @@ async def detect_latest(
     db: Session = Depends(get_db),
 ):
 
+    start_time = time.perf_counter()
+
     uploads = Path("app/uploads")
 
+    if not uploads.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Uploads directory not found.",
+        )
+
     files = [
-        f for f in uploads.iterdir()
-        if f.is_file()
+        file
+        for file in uploads.iterdir()
+        if file.is_file()
     ]
 
     if not files:
-
-        return {
-            "success": False,
-            "message": "No uploaded image found.",
-        }
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No uploaded image found.",
+        )
 
     latest = max(
         files,
-        key=lambda f: f.stat().st_mtime,
+        key=lambda file: file.stat().st_mtime,
     )
 
-    # -----------------------------
-    # Run YOLO Detection
-    # -----------------------------
+    logger.info("Processing image: %s", latest.name)
 
-    result = detection_service.detect(
-        str(latest)
-    )
+    try:
 
-    # -----------------------------
-    # VisionDesk Local AI Report
-    # -----------------------------
+        # ----------------------------------
+        # Run YOLO Detection
+        # ----------------------------------
 
-    ai_report = report_service.generate(
-        workers=result["workers_count"],
-        stats=result["stats"],
-        missing=result["missing"],
-        score=result["safety_score"],
-        risk=result["risk"],
-    )
+        result = detection_service.detect(
+            str(latest)
+        )
 
-    # -----------------------------
-    # Optional Gemini Enhancement
-    # -----------------------------
+        workers_count = result.get(
+            "workers_count",
+            0,
+        )
 
-    if GEMINI_AVAILABLE:
+        stats = result.get(
+            "stats",
+            {},
+        )
 
-        try:
+        missing = result.get(
+            "missing",
+            {},
+        )
 
-            gemini_report = gemini_service.generate_report(
-                workers=result["workers_count"],
-                stats=result["stats"],
-                missing=result["missing"],
-                score=result["safety_score"],
-                risk=result["risk"],
-            )
+        violations = result.get(
+            "violations",
+            0,
+        )
 
-            if (
-                gemini_report
-                and "Gemini Error" not in gemini_report
-                and "quota" not in gemini_report.lower()
-            ):
+        score = result.get(
+            "safety_score",
+            0,
+        )
 
-                ai_report = gemini_report
+        risk = result.get(
+            "risk",
+            "LOW",
+        )
 
-        except Exception:
+        detections = result.get(
+            "detections",
+            [],
+        )
 
-            pass
+        annotated_image = result.get(
+            "annotated_image",
+            "",
+        )
 
-    # -----------------------------
-    # Save Detection
-    # -----------------------------
+        # ----------------------------------
+        # Generate AI Report
+        # ----------------------------------
 
-    detection = Detection(
+        ai_report = report_service.generate(
+            workers=workers_count,
+            stats=stats,
+            missing=missing,
+            score=score,
+            risk=risk,
+        )
 
-        filename=latest.name,
+        # ----------------------------------
+        # Gemini Enhancement
+        # ----------------------------------
 
-        workers=result["workers_count"],
+        if GEMINI_AVAILABLE:
 
-        helmets=result["stats"]["helmet"],
+            try:
 
-        vests=result["stats"]["vest"],
+                gemini_report = (
+                    gemini_service.generate_report(
+                        workers=workers_count,
+                        stats=stats,
+                        missing=missing,
+                        score=score,
+                        risk=risk,
+                    )
+                )
 
-        gloves=result["stats"]["gloves"],
+                if (
+                    gemini_report
+                    and "Gemini Error" not in gemini_report
+                    and "quota" not in gemini_report.lower()
+                ):
+                    ai_report = gemini_report
 
-        goggles=result["stats"]["goggles"],
+            except Exception as gemini_error:
 
-        boots=result["stats"]["boots"],
+                logger.warning(
+                    "Gemini unavailable: %s",
+                    gemini_error,
+                )
 
-        violations=result["violations"],
+        # ----------------------------------
+        # Save Detection
+        # ----------------------------------
 
-        safety_score=result["safety_score"],
+        detection = Detection(
+            filename=latest.name,
+            workers=workers_count,
+            helmets=stats.get("helmet", 0),
+            vests=stats.get("vest", 0),
+            gloves=stats.get("gloves", 0),
+            goggles=stats.get("goggles", 0),
+            boots=stats.get("boots", 0),
+            violations=violations,
+            safety_score=score,
+            risk=risk,
+            ai_report=ai_report,
+            pdf_path="",
+        )
 
-        risk=result["risk"],
+        db.add(detection)
+        db.commit()
+        db.refresh(detection)
 
-        ai_report=ai_report,
+        elapsed = round(
+            time.perf_counter() - start_time,
+            2,
+        )
 
-        pdf_path="",
+        logger.info(
+            "Detection completed in %.2f seconds",
+            elapsed,
+        )
 
-    )
+        return {
+            "success": True,
+            "message": "Detection completed successfully.",
 
-    db.add(detection)
+            "filename": latest.name,
+            "detection_id": detection.id,
 
-    db.commit()
+            "workers": workers_count,
+            "workers_count": workers_count,
 
-    db.refresh(detection)
+            "detections": detections,
 
-    return {
+            "annotated_image": "/" + annotated_image.replace(
+                "\\",
+                "/",
+            ),
 
-        "success": True,
+            "violations": violations,
+            "safety_score": score,
+            "risk": risk,
 
-        "filename": latest.name,
+            "stats": stats,
+            "missing": missing,
 
-        **result,
+            "ai_report": ai_report,
 
-        "ai_report": ai_report,
+            "processing_time": elapsed,
+        }
 
-    }
+    except HTTPException:
+        raise
+
+    except Exception as error:
+
+        db.rollback()
+
+        logger.exception(
+            "Detection failed: %s",
+            error,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Detection failed. Please try again.",
+        )

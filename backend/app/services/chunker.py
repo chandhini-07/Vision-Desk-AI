@@ -27,8 +27,8 @@ class Chunker:
     RecursiveCharacterTextSplitter.
 
     Configuration is read from env vars at instantiation:
-    - CHUNK_SIZE: int, default 800
-    - CHUNK_OVERLAP: int, default 150
+    - CHUNK_SIZE: int, default 400
+    - CHUNK_OVERLAP: int, default 100
 
     chunk() is deterministic: identical inputs always produce identical output.
     """
@@ -36,20 +36,20 @@ class Chunker:
     def __init__(self):
         # Read config from env vars; fall back to defaults if absent or invalid
         try:
-            chunk_size = int(os.getenv("CHUNK_SIZE", "800"))
+            chunk_size = int(os.getenv("CHUNK_SIZE", "400"))
             if chunk_size <= 0:
                 raise ValueError("CHUNK_SIZE must be > 0")
         except (ValueError, TypeError):
-            logger.warning("Invalid CHUNK_SIZE env var; using default 800")
-            chunk_size = 800
+            logger.warning("Invalid CHUNK_SIZE env var; using default 400")
+            chunk_size = 400
 
         try:
-            chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "150"))
+            chunk_overlap = int(os.getenv("CHUNK_OVERLAP", "100"))
             if chunk_overlap < 0:
                 raise ValueError("CHUNK_OVERLAP must be >= 0")
         except (ValueError, TypeError):
-            logger.warning("Invalid CHUNK_OVERLAP env var; using default 150")
-            chunk_overlap = 150
+            logger.warning("Invalid CHUNK_OVERLAP env var; using default 100")
+            chunk_overlap = 100
 
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap

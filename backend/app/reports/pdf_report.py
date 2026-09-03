@@ -112,7 +112,7 @@ class PDFReport:
 
             elements.append(
                 Paragraph(
-                    "<b>Original Image</b>",
+                    "<b>zImage</b>",
                     styles["Heading2"],
                 )
             )

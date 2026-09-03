@@ -8,6 +8,8 @@ import {
   User,
   ShieldCheck,
   X,
+  Activity,
+  ChevronRight,
 } from "lucide-react";
 
 import { NavLink } from "react-router-dom";
@@ -22,78 +24,175 @@ const menuItems = [
   { icon: User, title: "My Profile", path: "/profile" },
 ];
 
-/**
- * Renders as a static column from `lg` up, and as an overlay drawer
- * below it. Before this, the sidebar was `hidden md:flex`, which left
- * phones and small tablets with no navigation at all.
- */
 export default function Sidebar({ open = false, onClose = () => {} }) {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   return (
     <>
-      {/* Backdrop — mobile only */}
+      {/* Mobile Backdrop */}
       {open && (
         <div
           onClick={onClose}
-          aria-hidden="true"
-          className="fixed inset-0 z-40 bg-slate-950/70 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[17rem] max-w-[85vw] shrink-0 flex-col overflow-y-auto border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-950 transition-transform duration-300 ease-out lg:static lg:z-auto lg:w-72 lg:max-w-none lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[18rem] max-w-[88vw] flex-col border-r border-slate-800 bg-gradient-to-b from-slate-900 via-slate-950 to-black transition-transform duration-300 lg:static lg:translate-x-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex items-start justify-between gap-2 border-b border-slate-800 p-5 sm:p-6 lg:p-8">
-          <div className="flex items-center gap-3 sm:gap-4">
-            <div className="shrink-0 rounded-2xl bg-blue-600 p-2.5 shadow-lg shadow-blue-500/30 sm:p-3">
-              <ShieldCheck size={28} className="text-white" />
+        {/* Logo */}
+
+        <div className="border-b border-slate-800 p-6">
+
+          <div className="flex items-center justify-between">
+
+            <div className="flex items-center gap-4">
+
+              <div className="rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 p-3 shadow-lg shadow-blue-600/40">
+
+                <ShieldCheck className="text-white" size={28} />
+
+              </div>
+
+              <div>
+
+                <h1 className="text-2xl font-black text-white">
+                  VisionDesk
+                </h1>
+
+                <p className="text-sm text-blue-400">
+                  AI Platform
+                </p>
+
+              </div>
+
             </div>
 
-            <div>
-              <h1 className="text-2xl font-extrabold text-white sm:text-3xl">
-                VisionDesk
-              </h1>
-              <p className="text-sm text-blue-400">AI Platform</p>
-            </div>
+            <button
+              onClick={onClose}
+              className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+            >
+              <X size={20} />
+            </button>
+
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close navigation"
-            className="inline-flex size-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-800 hover:text-white lg:hidden"
-          >
-            <X size={20} />
-          </button>
         </div>
 
-        <nav className="flex-1 space-y-1.5 p-4 sm:p-5">
+        {/* User Card */}
+
+        <div className="m-5 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+
+          <div className="flex items-center gap-4">
+
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 text-lg font-bold text-white">
+
+              {(user.name || "U").charAt(0).toUpperCase()}
+
+            </div>
+
+            <div className="min-w-0">
+
+              <p className="truncate font-semibold text-white">
+                {user.name || "User"}
+              </p>
+
+              <p className="truncate text-sm text-slate-400">
+                {user.email || ""}
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* Navigation */}
+
+        <nav className="flex-1 space-y-2 px-4">
+
           {menuItems.map(({ icon: Icon, title, path }) => (
+
             <NavLink
               key={title}
               to={path}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-3.5 rounded-2xl px-4 py-3 transition-all duration-300 sm:px-5 sm:py-3.5 ${
+                `group flex items-center justify-between rounded-2xl px-4 py-3 transition-all duration-300 ${
                   isActive
-                    ? "bg-blue-600 text-white"
+                    ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg"
                     : "text-slate-300 hover:bg-slate-800 hover:text-white"
                 }`
               }
             >
-              <Icon size={20} className="shrink-0" />
-              <span className="truncate">{title}</span>
+              <div className="flex items-center gap-3">
+
+                <Icon size={20} />
+
+                <span>{title}</span>
+
+              </div>
+
+              <ChevronRight
+                size={18}
+                className="opacity-0 transition group-hover:opacity-100"
+              />
+
             </NavLink>
+
           ))}
+
         </nav>
 
-        <div className="border-t border-slate-800 p-4 sm:p-5">
-          <div className="rounded-2xl bg-slate-800 p-4 sm:p-5">
-            <p className="text-sm text-slate-400">VisionDesk AI</p>
-            <p className="mt-1.5 font-bold text-white">Enterprise Edition</p>
+        {/* Bottom */}
+
+        <div className="border-t border-slate-800 p-5">
+
+          <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+
+            <div className="flex items-center gap-3">
+
+              <Activity
+                size={20}
+                className="text-emerald-400"
+              />
+
+              <div>
+
+                <h3 className="font-semibold text-white">
+                  System Status
+                </h3>
+
+                <p className="text-sm text-emerald-300">
+                  All services online
+                </p>
+
+              </div>
+
+            </div>
+
           </div>
+
+          <div className="mt-4 rounded-2xl bg-slate-800 p-4">
+
+            <p className="text-sm text-slate-400">
+              VisionDesk AI
+            </p>
+
+            <p className="mt-1 font-bold text-white">
+              Enterprise Edition
+            </p>
+
+            <p className="mt-2 text-xs text-slate-500">
+              AI Powered Workplace Safety Platform
+            </p>
+
+          </div>
+
         </div>
+
       </aside>
     </>
   );
