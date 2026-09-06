@@ -11,7 +11,7 @@ Detect PPE violations from construction site images, upload safety manuals and i
 ## Features
 
 **Computer Vision (Milestone 1)**
-- YOLOv8-based PPE detection: helmets, safety vests, gloves, goggles, boots
+- YOLOv11-based PPE detection: helmets, safety vests, gloves, goggles, boots
 - Per-worker violation detection with bounding boxes and confidence scores
 - Safety score calculation and risk classification (Low / Medium / High)
 - Gemini-powered AI recommendations and executive summaries
@@ -48,7 +48,7 @@ Detect PPE violations from construction site images, upload safety manuals and i
 |---|---|
 | **Frontend** | React 19, Vite 8, Tailwind CSS v4, shadcn/ui, Framer Motion, Lucide Icons, Axios, React Router |
 | **Backend** | FastAPI, SQLAlchemy 2, Uvicorn, Pydantic |
-| **Vision** | YOLOv8 (Ultralytics), PyTorch, OpenCV, NumPy |
+| **Vision** | YOLOv11 (Ultralytics), PyTorch, OpenCV, NumPy |
 | **Documents** | PyMuPDF, LangChain (RecursiveCharacterTextSplitter) |
 | **AI** | Gemini API (`gemini-2.0-flash` for chat, `gemini-embedding-001` for embeddings) |
 | **Vector DB** | ChromaDB (persistent client, cosine similarity) |
@@ -314,7 +314,7 @@ Only text-native PDFs work (scanned images need OCR, which isn't in the pipeline
 ## Milestone Roadmap
 
 - [x] **Milestone 1** — Visual Safety Detection (weeks 1–2)
-  - PPE detection with YOLOv8 (helmet, vest, gloves, goggles, boots)
+  - PPE detection with YOLOv11 (helmet, vest, gloves, goggles, boots)
   - Image/video upload, violation detection, PDF report generation
 - [x] **Milestone 2** — Document Intelligence & Knowledge Base (weeks 3–4)
   - PDF extraction, chunking, embedding, semantic search
@@ -335,6 +335,6 @@ Educational project — VisionDesk AI is developed as part of the Infosys team i
 ---
 
 ## Credits
- Powered by YOLOv8 (Ultralytics), Google Gemini, LangChain, ChromaDB, and FastAPI.
+ Powered by YOLOv11 (Ultralytics), Google Gemini, LangChain, ChromaDB, and FastAPI.
 
 For questions or issues, open an issue in this repository.
